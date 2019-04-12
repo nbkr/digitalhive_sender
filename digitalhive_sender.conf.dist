@@ -1,0 +1,6 @@
+interval: 300
+height: 223
+dest_user: scale1
+dest_pass: not_the_real_one
+dest_url: https://www.example.com/scale1/
+shutdownvolt: 12.00

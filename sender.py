@@ -1,22 +1,6 @@
 #! /usr/bin/env python
 # coding: utf-8
 
-HOST = 'localhost'
-PORT = 4223
-INTERVAL = 15 * 60
-HEIGHT = 223
-
-# Sinkt die Spannung unter diesen Wert fährt sich der Raspberry Pi herunter.
-# Man ließt unterschiedliches, von 10.5 bei Traktionsbatterien zu 11.90 bei
-# Bleibatterien generell. 12.00 ist ein Kompromiss.
-SHUTDOWN_VOLT = 12.00
-
-DEST_URL = 'https://www.example.com/digitalhive/scale1/'
-DEST_USER = 'scale1'
-DEST_PASS = 'not_the_real_one'
-
-###############################################################################################################################################3
-
 from tinkerforge.ip_connection import IPConnection
 from tinkerforge.bricklet_load_cell_v2 import BrickletLoadCellV2
 from tinkerforge.bricklet_barometer_v2 import BrickletBarometerV2
@@ -25,6 +9,7 @@ from tinkerforge.bricklet_humidity_v2 import BrickletHumidityV2
 from tinkerforge.bricklet_ptc_v2 import BrickletPTCV2
 from functools import partial
 import os
+import yaml
 import csv
 import requests
 import collections
@@ -47,12 +32,22 @@ class HiveDataCollector:
 
         self.firstlowbat = True
 
+        self.config = {}
+
+        # Reading config
+        with open(os.path.expanduser("~/digitalhive_sender.conf"), 'r') as stream:
+            try:
+                self.config = yaml.safe_load(stream)
+            except yaml.YAMLError as exc:
+                print "Konnte Konfiguration nicht laden."
+                sys.exit(1)
+
         # Create connection and connect to brickd
         self.ipcon = IPConnection()
 
         # Register Enumerate Callback
         self.ipcon.register_callback(IPConnection.CALLBACK_ENUMERATE, self.cb_enumerate)
-        self.ipcon.connect(HOST, PORT)
+        self.ipcon.connect('localhost', 4223)
 
         # Trigger Enumerate
         self.ipcon.enumerate()
@@ -63,7 +58,7 @@ class HiveDataCollector:
         try: 
             while True:
                 self.send()
-                time.sleep(INTERVAL)
+                time.sleep(self.config['interval'])
         except Exception, e:
             self.ipcon.disconnect()
             print "{} - Stopping.".format(datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
@@ -135,14 +130,14 @@ class HiveDataCollector:
                 break
 
         if data['weight'] != '?':
-            data['weight'] = round(data['weight'] / 1000.00, 1)
+            data['weight'] = round(data['weight'] / 1000.00, 2)
 
         # We need the tempreture first
         temp = '?'
         if self.hygrometer is not None:
-            data['humidity'] = int(round(float(self.hygrometer.get_humidity() / 100.00), 0))
+            data['humidity'] = round(float(self.hygrometer.get_humidity() / 100.00), 1)
             temp = self.hygrometer.get_temperature() / 100.00 # Need the detailed value for qff value.
-            data['temp'] = int(round((temp), 0))
+            data['temp'] = round((temp), 1)
 
         # Other values
         if self.barometer is not None:
@@ -174,10 +169,10 @@ class HiveDataCollector:
             # We also send the HEIGHT value, so that we can use it for later
             # recalculation
 
-            if HEIGHT is not None and temp is not '?':
+            if self.config['height'] is not None and temp is not '?':
                 qfe = float(data['pressure-qfe'])
                 Tg = 0.0065
-                H = HEIGHT
+                H = self.config['height']
                 Tfe = temp
 
                 qff = qfe / (1 - Tg * H / (273.15 + Tfe + Tg * H)) ** (0.034163 / Tg)
@@ -188,8 +183,8 @@ class HiveDataCollector:
         if self.ptc is not None:
             data['innertemp'] = round((self.ptc.get_temperature() / 100.00), 1)
 
-        if HEIGHT is not None:
-            data['height'] = HEIGHT
+        if self.config['height'] is not None:
+            data['height'] = self.config['height']
 
         if self.voltage is not None:
             data['bat'] = round(float(self.voltage.get_voltage() / 1000.00), 2)
@@ -204,12 +199,12 @@ class HiveDataCollector:
             datawriter.writerow(data)
 
         try:
-            r = requests.post(DEST_URL, data=data, auth=(DEST_USER, DEST_PASS), timeout=10)
+            r = requests.post(self.config['dest_url'], data=data, auth=(self.config['dest_user'], self.config['dest_passt']), timeout=10)
         except:
             pass
 
         # Emergency Shutdown if voltage is to low
-        if data['bat'] is not '?' and data['bat'] < SHUTDOWN_VOLT:
+        if data['bat'] is not '?' and data['bat'] < self.config['shutdownvolt']:
             if self.firstlowbat == True:
                 # We want to shutdown only if it happend the second time. Why?
                 # Otherwise, if the battery runs out, and we attach the Raspberry pi to
