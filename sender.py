@@ -58,7 +58,7 @@ class HiveDataCollector:
         try: 
             while True:
                 self.send()
-                time.sleep(self.config['interval'])
+                time.sleep(int(self.config['interval']) * 60)
         except Exception, e:
             self.ipcon.disconnect()
             print "{} - Stopping.".format(datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
@@ -104,9 +104,13 @@ class HiveDataCollector:
             self.voltage = BrickletVoltageCurrentV2(uid, self.ipcon)
 
         if device_identifier == BrickletPTCV2.DEVICE_IDENTIFIER:
-            #self.ptc = BrickletPTCV2(uid, self.ipcon)
-            # No Temp sensor yet.
-            pass
+            self.ptc = BrickletPTCV2(uid, self.ipcon)
+            if not self.ptc.is_sensor_connected():
+                self.ptc = None
+                return
+            
+            self.ptc.set_wire_mode(BrickletPTCV2.WIRE_MODE_4)
+
 
     def send(self):
         # The order is important, its the order it get's written into the file.
