@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#! /usr/bin/env python3
 # coding: utf-8
 
 from tinkerforge.ip_connection import IPConnection
@@ -39,7 +39,7 @@ class HiveDataCollector:
             try:
                 self.config = yaml.safe_load(stream)
             except yaml.YAMLError as exc:
-                print "Konnte Konfiguration nicht laden."
+                print("Konnte Konfiguration nicht laden.")
                 sys.exit(1)
 
         # Create connection and connect to brickd
@@ -53,15 +53,15 @@ class HiveDataCollector:
         self.ipcon.enumerate()
         time.sleep(5) # So that the enumeration has a chance to be done.
 
-        print "{} - Starting.".format(datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+        print("{} - Starting.".format(datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
 
         try: 
             while True:
                 self.send()
                 time.sleep(int(self.config['interval']) * 60)
-        except Exception, e:
+        except Exception as e:
             self.ipcon.disconnect()
-            print "{} - Stopping.".format(datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+            print("{} - Stopping.".format(datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
             #print (str(e))
 
 
