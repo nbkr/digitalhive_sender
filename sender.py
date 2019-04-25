@@ -203,7 +203,7 @@ class HiveDataCollector:
             datawriter.writerow(data)
 
         try:
-            r = requests.post(self.config['dest_url'], data=data, auth=(self.config['dest_user'], self.config['dest_passt']), timeout=10)
+            r = requests.post("{}/admin/newdata.php".format(self.config['dest_url']), data=data, auth=(self.config['dest_user'], self.config['dest_passt']), timeout=10)
         except:
             pass
 
