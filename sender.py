@@ -19,12 +19,7 @@ from datetime import datetime
 
 class HiveDataCollector:
     def __init__(self):
-        self.loadcells = []
-        self.loadcells.append(None)
-        self.loadcells.append(None)
-        self.loadcells.append(None)
-        self.loadcells.append(None)
-
+        self.loadcell = None
         self.hygrometer = None
         self.barometer = None
         self.voltage = None
@@ -82,12 +77,7 @@ class HiveDataCollector:
         #print("")
 
         if device_identifier == BrickletLoadCellV2.DEVICE_IDENTIFIER:
-            for i in range(0, len(self.loadcells)):
-                if self.loadcells[i] == None:
-                    key = i
-                    break
-
-            self.loadcells[key] = BrickletLoadCellV2(uid, self.ipcon)
+            self.loadcell = BrickletLoadCellV2(uid, self.ipcon)
             #self.loadcells[key].register_callback(self.loadcells[key].CALLBACK_WEIGHT, partial(self.cb_weight, key)) 
             #self.loadcells[key].set_weight_callback_configuration(1000, False, "x", 0, 0)
 
@@ -126,14 +116,8 @@ class HiveDataCollector:
         data['bat'] = '?'
 
         # Weight Data
-        for i in self.loadcells:
-            if i is not None:
-                data['weight'] = data['weight'] + i.get_weight()
-            else:
-                data['weight'] = '?'
-                break
-
-        if data['weight'] != '?':
+        if self.loadcell is not None:
+            data['weight'] = self.loadcell.get_weight()
             data['weight'] = round(data['weight'] / 1000.00, 2)
 
         # We need the tempreture first
