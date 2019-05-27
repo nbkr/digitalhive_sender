@@ -1,13 +1,11 @@
-#! /usr/bin/env python3
+#! /usr/bin/env python
 # coding: utf-8
 
 from tinkerforge.ip_connection import IPConnection
 from tinkerforge.bricklet_load_cell_v2 import BrickletLoadCellV2
-from tinkerforge.bricklet_barometer_v2 import BrickletBarometerV2
 from tinkerforge.bricklet_voltage_current_v2 import BrickletVoltageCurrentV2
-from tinkerforge.bricklet_humidity_v2 import BrickletHumidityV2
+from tinkerforge.bricklet_air_quality import BrickletAirQuality
 from tinkerforge.bricklet_ptc_v2 import BrickletPTCV2
-from functools import partial
 import os
 import yaml
 import csv
@@ -24,6 +22,7 @@ class HiveDataCollector:
         self.barometer = None
         self.voltage = None
         self.ptc = None
+        self.lastweight = None
 
         self.firstlowbat = True
 
@@ -78,17 +77,11 @@ class HiveDataCollector:
 
         if device_identifier == BrickletLoadCellV2.DEVICE_IDENTIFIER:
             self.loadcell = BrickletLoadCellV2(uid, self.ipcon)
-            #self.loadcells[key].register_callback(self.loadcells[key].CALLBACK_WEIGHT, partial(self.cb_weight, key)) 
-            #self.loadcells[key].set_weight_callback_configuration(1000, False, "x", 0, 0)
 
-        if device_identifier == BrickletBarometerV2.DEVICE_IDENTIFIER:
-            self.barometer = BrickletBarometerV2(uid, self.ipcon)
-
-        if device_identifier == BrickletBarometerV2.DEVICE_IDENTIFIER:
-            self.barometer = BrickletBarometerV2(uid, self.ipcon)
-
-        if device_identifier == BrickletHumidityV2.DEVICE_IDENTIFIER:
-            self.hygrometer = BrickletHumidityV2(uid, self.ipcon)
+        if device_identifier == BrickletAirQuality.DEVICE_IDENTIFIER:
+            airquality = BrickletAirQuality(uid, self.ipcon)
+            self.hygrometer = airquality
+            self.barometer = airquality
 
         if device_identifier == BrickletVoltageCurrentV2.DEVICE_IDENTIFIER:
             self.voltage = BrickletVoltageCurrentV2(uid, self.ipcon)
@@ -114,11 +107,30 @@ class HiveDataCollector:
         data['innertemp'] = '?'
         data['height'] = '?'
         data['bat'] = '?'
+        data['weightchange'] = '?'
 
         # Weight Data
         if self.loadcell is not None:
             data['weight'] = self.loadcell.get_weight()
             data['weight'] = round(data['weight'] / 1000.00, 2)
+
+            if self.lastweight is not None:
+                data['weightchange'] = data['weight'] - self.lastweight
+            else:
+                # The scale just started so the lastweight ist empty, we have to read it from the csv file.
+                with open('data.csv', 'w') as csvfile:
+                    datareader = csv.DictReader(csvfile, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL, lineterminator='\n')
+                    for line in datareader:
+                        if line['weight'] != '?':
+                            self.lastweight = float(line['weight'])
+
+                    data['weightchange'] = data['weight'] - self.lastweight
+                except:
+                    # If that file doesn't exist yet, the change equals the weight.
+                    data['weightchange'] = data['weight']
+
+
+            self.lastweight = data['weight']
 
         # We need the tempreture first
         temp = '?'
@@ -129,7 +141,7 @@ class HiveDataCollector:
 
         # Other values
         if self.barometer is not None:
-            qfe = self.barometer.get_air_pressure() / 1000.00
+            qfe = self.barometer.get_air_pressure() / 100.00
             data['pressure-qfe'] = int(round(qfe, 0))
             # In order to calculate the value as the weather forecast does, we need the current
             # temprature and the height of the location.
