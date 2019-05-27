@@ -118,13 +118,14 @@ class HiveDataCollector:
                 data['weightchange'] = data['weight'] - self.lastweight
             else:
                 # The scale just started so the lastweight ist empty, we have to read it from the csv file.
-                with open('data.csv', 'w') as csvfile:
-                    datareader = csv.DictReader(csvfile, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL, lineterminator='\n')
-                    for line in datareader:
-                        if line['weight'] != '?':
-                            self.lastweight = float(line['weight'])
+                try:
+                    with open('data.csv', 'r') as csvfile:
+                        datareader = csv.DictReader(csvfile, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL, lineterminator='\n')
+                        for line in datareader:
+                            if line['weight'] != '?':
+                                self.lastweight = float(line['weight'])
 
-                    data['weightchange'] = data['weight'] - self.lastweight
+                        data['weightchange'] = data['weight'] - self.lastweight
                 except:
                     # If that file doesn't exist yet, the change equals the weight.
                     data['weightchange'] = data['weight']
