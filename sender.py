@@ -115,7 +115,7 @@ class HiveDataCollector:
             data['weight'] = round(data['weight'] / 1000.00, 2)
 
             if self.lastweight is not None:
-                data['weightchange'] = data['weight'] - self.lastweight
+                data['weightchange'] = round(data['weight'] - self.lastweight, 2)
             else:
                 # The scale just started so the lastweight ist empty, we have to read it from the csv file.
                 try:
@@ -125,7 +125,7 @@ class HiveDataCollector:
                             if line['weight'] != '?':
                                 self.lastweight = float(line['weight'])
 
-                        data['weightchange'] = data['weight'] - self.lastweight
+                        data['weightchange'] = round(data['weight'] - self.lastweight, 2)
                 except:
                     # If that file doesn't exist yet, the change equals the weight.
                     data['weightchange'] = data['weight']
