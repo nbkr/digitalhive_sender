@@ -5,4 +5,4 @@ pkg-resources==0.0.0
 PyYAML==5.1
 requests==2.21.0
 tinkerforge==2.1.21
-urllib3==1.24.2
+urllib3==1.26.5
